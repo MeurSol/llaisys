@@ -6,6 +6,7 @@
 #include <cstring>
 #include <numeric>
 #include <sstream>
+#include <vector>
 
 namespace llaisys {
 
@@ -167,7 +168,7 @@ void Tensor::debug() const {
 bool Tensor::isContiguous() const {
     size_t tensor_dim = this->ndim();
     size_t tmp_dim = 1;
-    for (size_t i = tensor_dim - 1; i; --i) {
+    for (size_t i = tensor_dim; i-- > 0;) {
         if (tmp_dim != this->strides()[i]) {
             return false;
         }
@@ -183,8 +184,20 @@ tensor_t Tensor::permute(const std::vector<size_t> &order) const {
 }
 
 tensor_t Tensor::view(const std::vector<size_t> &shape) const {
-    TO_BE_IMPLEMENTED();
-    return std::shared_ptr<Tensor>(new Tensor(_meta, _storage));
+    size_t new_dim = shape.size();
+    std::vector<ptrdiff_t> new_strides(new_dim);
+    size_t stride = 1; 
+    for (size_t i = new_dim; i-- >0;) {
+        new_strides[i] = stride;
+        stride *= shape[i];
+    }
+    
+    if (this->numel() != stride || !isContiguous()) {
+        EXCEPTION_TRANSFORM_SHAPE;
+    }
+
+    auto new_meta = TensorMeta{dtype(), shape, new_strides};
+    return std::shared_ptr<Tensor>(new Tensor(new_meta, this->_storage, this->_offset));
 }
 
 tensor_t Tensor::slice(size_t dim, size_t start, size_t end) const {
