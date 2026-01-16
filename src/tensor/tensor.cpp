@@ -2,6 +2,7 @@
 
 #include "../utils.hpp"
 
+#include <cstddef>
 #include <cstring>
 #include <numeric>
 #include <sstream>
@@ -164,7 +165,15 @@ void Tensor::debug() const {
 }
 
 bool Tensor::isContiguous() const {
-    TO_BE_IMPLEMENTED();
+    size_t tensor_dim = this->ndim();
+    size_t tmp_dim = 1;
+    for (size_t i = tensor_dim - 1; i; --i) {
+        if (tmp_dim != this->strides()[i]) {
+            return false;
+        }
+        tmp_dim *= this->shape()[i];
+    }
+
     return true;
 }
 
