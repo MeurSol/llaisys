@@ -6,18 +6,32 @@
 template <typename T>
 void linear_(T *out, const T *in, const T *weight, const T *bias,
              size_t batch_size, size_t in_features, size_t out_features) {
-    using acc_t = std::conditional_t<std::is_same_v<T, llaisys::bf16_t> || std::is_same_v<T, llaisys::fp16_t>, float, T>;
+    using acc_t = std::conditional_t<
+        std::is_same_v<T, llaisys::bf16_t> || std::is_same_v<T, llaisys::fp16_t>,
+        float, T>;
 
     for (size_t i = 0; i < batch_size; ++i) {
         for (size_t j = 0; j < out_features; ++j) {
             acc_t sum = acc_t{};
             for (size_t k = 0; k < in_features; ++k) {
-                sum += llaisys::utils::cast<acc_t>(in[i * in_features + k]) * llaisys::utils::cast<acc_t>(weight[j * in_features + k]);
+                if constexpr (std::is_same_v<T, acc_t>) {
+                    sum += in[i * in_features + k] * weight[j * in_features + k];
+                } else {
+                    sum += llaisys::utils::cast<acc_t>(in[i * in_features + k]) * llaisys::utils::cast<acc_t>(weight[j * in_features + k]);
+                }
             }
             if (bias != nullptr) {
-                sum += llaisys::utils::cast<acc_t>(bias[j]);
+                if constexpr (std::is_same_v<T, acc_t>) {
+                    sum += bias[j];
+                } else {
+                    sum += llaisys::utils::cast<acc_t>(bias[j]);
+                }
             }
-            out[i * out_features + j] = llaisys::utils::cast<T>(sum);
+            if constexpr (std::is_same_v<T, acc_t>) {
+                out[i * out_features + j] = sum;
+            } else {
+                out[i * out_features + j] = llaisys::utils::cast<T>(sum);
+            }
         }
     }
 }
