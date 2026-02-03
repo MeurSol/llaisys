@@ -14,7 +14,6 @@ void rope(tensor_t out, tensor_t in, tensor_t pos_ids, float theta) {
     size_t n_heads = in->shape()[1];
     size_t head_dim = in->shape()[2];
 
-    // always support cpu calculation
     if (in->deviceType() == LLAISYS_DEVICE_CPU) {
         return cpu::rope(out->data(), in->data(), pos_ids->data(),
                         theta, in->dtype(), seq_len, n_heads, head_dim);
