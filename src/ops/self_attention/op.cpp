@@ -1,6 +1,5 @@
 #include "op.hpp"
 
-#include "../../core/llaisys_core.hpp"
 #include "../../utils.hpp"
 
 #include "cpu/self_attention_cpu.hpp"
