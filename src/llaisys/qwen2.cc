@@ -35,7 +35,6 @@ __C {
         handle->model = new llaisys::models::Qwen2Model(&cpp_meta, device_type, device_id);
         handle->nlayer = meta->nlayer;
 
-        // Get C++ weights and create C wrapper tensors
         auto* cpp_weights = handle->model->weights();
 
         // Allocate arrays for per-layer weights
