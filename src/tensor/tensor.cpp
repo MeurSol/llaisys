@@ -169,7 +169,7 @@ bool Tensor::isContiguous() const {
     size_t tensor_dim = this->ndim();
     size_t tmp_dim = 1;
     for (size_t i = tensor_dim; i-- > 0;) {
-        if (tmp_dim != this->strides()[i]) {
+        if (static_cast<ptrdiff_t>(tmp_dim) != this->strides()[i]) {
             return false;
         }
         tmp_dim *= this->shape()[i];
