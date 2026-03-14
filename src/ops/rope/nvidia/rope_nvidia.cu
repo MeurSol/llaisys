@@ -4,8 +4,10 @@
 
 #include <cuda_runtime.h>
 
+#include <cmath>
 #include <cstdio>
 #include <stdexcept>
+#include <type_traits>
 
 namespace llaisys::ops::nvidia {
 
@@ -28,11 +30,17 @@ __global__ void rope_kernel(T *out, const T *in, const int64_t *pos_ids, float t
     float sin_angle = sinf(angle);
     float cos_angle = cosf(angle);
 
-    float a = utils::cast_device<float>(in[offset + k]);
-    float b = utils::cast_device<float>(in[offset + k + half_dim]);
-
-    out[offset + k] = utils::cast_device<T>(a * cos_angle - b * sin_angle);
-    out[offset + k + half_dim] = utils::cast_device<T>(b * cos_angle + a * sin_angle);
+    if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
+        float a = utils::cast_device<float>(in[offset + k]);
+        float b = utils::cast_device<float>(in[offset + k + half_dim]);
+        out[offset + k] = utils::cast_device<T>(a * cos_angle - b * sin_angle);
+        out[offset + k + half_dim] = utils::cast_device<T>(b * cos_angle + a * sin_angle);
+    } else {
+        T a = in[offset + k];
+        T b = in[offset + k + half_dim];
+        out[offset + k] = a * cos_angle - b * sin_angle;
+        out[offset + k + half_dim] = b * cos_angle + a * sin_angle;
+    }
 }
 
 void rope(std::byte *out, const std::byte *in, const std::byte *pos_ids,

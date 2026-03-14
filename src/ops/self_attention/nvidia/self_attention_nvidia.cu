@@ -8,6 +8,7 @@
 #include <cstdio>
 #include <limits>
 #include <stdexcept>
+#include <type_traits>
 
 namespace llaisys::ops::nvidia {
 
@@ -38,7 +39,11 @@ __global__ void self_attention_kernel_impl(T *attn_val, const T *q, const T *k, 
         const T *k_ptr = k + (t * nkvhead * d) + (kv_head_idx * d);
         float dot = 0.0f;
         for (size_t j = 0; j < d; ++j) {
-            dot += utils::cast_device<float>(q_ptr[j]) * utils::cast_device<float>(k_ptr[j]);
+            if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
+                dot += utils::cast_device<float>(q_ptr[j]) * utils::cast_device<float>(k_ptr[j]);
+            } else {
+                dot += q_ptr[j] * k_ptr[j];
+            }
         }
         scores[t] = dot * scale;
         if (scores[t] > max_val) {
@@ -56,9 +61,17 @@ __global__ void self_attention_kernel_impl(T *attn_val, const T *q, const T *k, 
         float value = 0.0f;
         for (size_t t = 0; t < valid_len; ++t) {
             const T *v_ptr = v + (t * nkvhead * dv) + (kv_head_idx * dv);
-            value += scores[t] * utils::cast_device<float>(v_ptr[j]);
+            if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
+                value += scores[t] * utils::cast_device<float>(v_ptr[j]);
+            } else {
+                value += scores[t] * v_ptr[j];
+            }
         }
-        out_ptr[j] = utils::cast_device<T>(value / sum_exp);
+        if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
+            out_ptr[j] = utils::cast_device<T>(value / sum_exp);
+        } else {
+            out_ptr[j] = value / sum_exp;
+        }
     }
 }
 

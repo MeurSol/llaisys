@@ -6,6 +6,7 @@
 
 #include <cfloat>
 #include <cstdio>
+#include <type_traits>
 
 namespace llaisys::ops::nvidia {
 
@@ -21,7 +22,12 @@ __global__ void argmax_kernel(int64_t *max_idx, T *max_val, const T *vals, size_
     int64_t local_idx = 0;
 
     for (size_t i = tid; i < size; i += blockDim.x * gridDim.x) {
-        float value = utils::cast_device<float>(vals[i]);
+        float value;
+        if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
+            value = utils::cast_device<float>(vals[i]);
+        } else {
+            value = vals[i];
+        }
         if (value > local_max) {
             local_max = value;
             local_idx = static_cast<int64_t>(i);

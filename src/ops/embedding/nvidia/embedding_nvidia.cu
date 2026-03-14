@@ -1,5 +1,7 @@
 #include "embedding_nvidia.cuh"
 
+#include "../../../utils.hpp"
+
 #include <cuda_runtime.h>
 
 #include <cstdint>

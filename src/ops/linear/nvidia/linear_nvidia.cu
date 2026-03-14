@@ -33,14 +33,14 @@ __global__ void linear_kernel(T *out, const T *in, const T *weight, const T *bia
         }
         out[idx] = utils::cast_device<T>(sum);
     } else {
-        float sum = 0.0f;
+        T sum = 0;
         for (size_t k = 0; k < in_features; ++k) {
             sum += in[row * in_features + k] * weight[col * in_features + k];
         }
         if (bias != nullptr) {
             sum += bias[col];
         }
-        out[idx] = static_cast<T>(sum);
+        out[idx] = sum;
     }
 }
 

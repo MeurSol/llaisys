@@ -36,9 +36,13 @@ __global__ void rms_norm_kernel(T *out, const T *in, const T *weight, float eps,
 
     float inv_rms = rsqrtf(shared[0] / static_cast<float>(D) + eps);
     for (size_t col = tid; col < D; col += blockDim.x) {
-        float x = utils::cast_device<float>(in[row * D + col]);
-        float w = utils::cast_device<float>(weight[col]);
-        out[row * D + col] = utils::cast_device<T>(x * inv_rms * w);
+        if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
+            float x = utils::cast_device<float>(in[row * D + col]);
+            float w = utils::cast_device<float>(weight[col]);
+            out[row * D + col] = utils::cast_device<T>(x * inv_rms * w);
+        } else {
+            out[row * D + col] = (in[row * D + col] * inv_rms) * weight[col];
+        }
     }
 }
 
