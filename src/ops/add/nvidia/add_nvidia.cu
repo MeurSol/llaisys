@@ -6,42 +6,33 @@
 
 namespace llaisys::ops::nvidia {
 
-// CUDA kernel for element-wise addition
 template <typename T>
 __global__ void add_kernel(T *c, const T *a, const T *b, size_t numel) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < numel) {
-        if constexpr (std::is_same_v<T, llaisys::bf16_t> || std::is_same_v<T, llaisys::fp16_t>) {
-            c[idx] = llaisys::utils::cast<T>(
-                llaisys::utils::cast<float>(a[idx]) + llaisys::utils::cast<float>(b[idx]));
-        } else {
-            c[idx] = a[idx] + b[idx];
-        }
+        c[idx] = a[idx] + b[idx];
     }
 }
 
-// Specialization for half using CUDA native half arithmetic
+// Specialization for fp16
 template <>
-__global__ void add_kernel<llaisys::fp16_t>(llaisys::fp16_t *c, const llaisys::fp16_t *a, const llaisys::fp16_t *b, size_t numel) {
+__global__ void add_kernel<fp16_t>(fp16_t *c, const fp16_t *a, const fp16_t *b, size_t numel) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < numel) {
-        // Use native half2 arithmetic for better performance
-        half ha = __half_raw(a[idx]._v);
-        half hb = __half_raw(b[idx]._v);
-        half hc = __hadd(ha, hb);
-        c[idx]._v = __half_raw(hc).x;
+        float fa = utils::cast_device<float>(a[idx]);
+        float fb = utils::cast_device<float>(b[idx]);
+        c[idx] = utils::cast_device<fp16_t>(fa + fb);
     }
 }
 
-// Specialization for bfloat16
+// Specialization for bf16
 template <>
-__global__ void add_kernel<llaisys::bf16_t>(llaisys::bf16_t *c, const llaisys::bf16_t *a, const llaisys::bf16_t *b, size_t numel) {
+__global__ void add_kernel<bf16_t>(bf16_t *c, const bf16_t *a, const bf16_t *b, size_t numel) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < numel) {
-        // bfloat16: convert to float, add, convert back
-        float fa = llaisys::utils::cast<float>(a[idx]);
-        float fb = llaisys::utils::cast<float>(b[idx]);
-        c[idx] = llaisys::utils::cast<llaisys::bf16_t>(fa + fb);
+        float fa = utils::cast_device<float>(a[idx]);
+        float fb = utils::cast_device<float>(b[idx]);
+        c[idx] = utils::cast_device<bf16_t>(fa + fb);
     }
 }
 
@@ -57,18 +48,18 @@ void add(std::byte *c, const std::byte *a, const std::byte *b, llaisysDataType_t
             reinterpret_cast<const float *>(b),
             numel);
         break;
-    case LLAISYS_DTYPE_BF16:
-        add_kernel<<<num_blocks, block_size>>>(
-            reinterpret_cast<llaisys::bf16_t *>(c),
-            reinterpret_cast<const llaisys::bf16_t *>(a),
-            reinterpret_cast<const llaisys::bf16_t *>(b),
-            numel);
-        break;
     case LLAISYS_DTYPE_F16:
         add_kernel<<<num_blocks, block_size>>>(
-            reinterpret_cast<llaisys::fp16_t *>(c),
-            reinterpret_cast<const llaisys::fp16_t *>(a),
-            reinterpret_cast<const llaisys::fp16_t *>(b),
+            reinterpret_cast<fp16_t *>(c),
+            reinterpret_cast<const fp16_t *>(a),
+            reinterpret_cast<const fp16_t *>(b),
+            numel);
+        break;
+    case LLAISYS_DTYPE_BF16:
+        add_kernel<<<num_blocks, block_size>>>(
+            reinterpret_cast<bf16_t *>(c),
+            reinterpret_cast<const bf16_t *>(a),
+            reinterpret_cast<const bf16_t *>(b),
             numel);
         break;
     default:
