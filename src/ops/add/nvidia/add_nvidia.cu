@@ -2,6 +2,7 @@
 #include "../../../utils.hpp"
 
 #include <cuda_runtime.h>
+#include <type_traits>
 #include <cstdio>
 
 namespace llaisys::ops::nvidia {
@@ -10,29 +11,13 @@ template <typename T>
 __global__ void add_kernel(T *c, const T *a, const T *b, size_t numel) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < numel) {
-        c[idx] = a[idx] + b[idx];
-    }
-}
-
-// Specialization for fp16
-template <>
-__global__ void add_kernel<fp16_t>(fp16_t *c, const fp16_t *a, const fp16_t *b, size_t numel) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < numel) {
-        float fa = utils::cast_device<float>(a[idx]);
-        float fb = utils::cast_device<float>(b[idx]);
-        c[idx] = utils::cast_device<fp16_t>(fa + fb);
-    }
-}
-
-// Specialization for bf16
-template <>
-__global__ void add_kernel<bf16_t>(bf16_t *c, const bf16_t *a, const bf16_t *b, size_t numel) {
-    size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < numel) {
-        float fa = utils::cast_device<float>(a[idx]);
-        float fb = utils::cast_device<float>(b[idx]);
-        c[idx] = utils::cast_device<bf16_t>(fa + fb);
+        if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
+            float fa = utils::cast_device<float>(a[idx]);
+            float fb = utils::cast_device<float>(b[idx]);
+            c[idx] = utils::cast_device<T>(fa + fb);
+        } else {
+            c[idx] = a[idx] + b[idx];
+        }
     }
 }
 
