@@ -16,6 +16,11 @@ option_end()
 if has_config("nv-gpu") then
     add_defines("ENABLE_NVIDIA_API")
     includes("xmake/nvidia.lua")
+
+    if is_plat("linux") then
+        add_sysincludedirs("/usr/local/cuda/include")
+        add_linkdirs("/usr/local/cuda/lib64")
+    end
 end
 
 target("llaisys-utils")
@@ -56,6 +61,9 @@ target("llaisys-core")
     set_kind("static")
     add_deps("llaisys-utils")
     add_deps("llaisys-device")
+    if has_config("nv-gpu") then
+        add_deps("llaisys-device-nvidia")
+    end
 
     set_languages("cxx17")
     set_warnings("all", "error")
@@ -125,13 +133,29 @@ target("llaisys")
     add_deps("llaisys-tensor")
     add_deps("llaisys-ops")
     add_deps("llaisys-models")
+    add_deps("llaisys-device-cpu")
+    add_deps("llaisys-ops-cpu")
 
     set_languages("cxx17")
     set_warnings("all", "error")
+
+    if has_config("nv-gpu") then
+        add_deps("llaisys-device-nvidia")
+        add_deps("llaisys-ops-nvidia")
+
+        -- Use nvcc as the shared library linker for proper CUDA device code linking
+        set_toolset("sh", "nvcc")
+
+        if is_plat("linux") then
+            add_syslinks("cudart", "cublas")
+            add_shflags("-Xcompiler", "-fPIC", "-shared", "-rdc=true", {force = true})
+        end
+    end
+
     add_files("src/llaisys/*.cc")
     set_installdir(".")
 
-    
+
     after_install(function (target)
         -- copy shared library to python package
         print("Copying llaisys to python/llaisys/libllaisys/ ..")

@@ -34,14 +34,14 @@ target("llaisys-device-nvidia")
     add_rules("cuda")
 
     -- Support multiple architectures for broader compatibility
-    -- Generates code for both virtual architecture (PTX) and real hardware (SASS)
     add_cuflags("-gencode=arch=compute_" .. cuda_arch .. ",code=sm_" .. cuda_arch)
     add_cuflags("-O3")
-    add_cxflags("-fPIC", "-Wno-unknown-pragmas")
+    -- Enable relocatable device code for proper linking with shared library
+    add_cuflags("-rdc=true")
+    -- Pass -fPIC to the host compiler through nvcc
+    add_cuflags("-Xcompiler=-fPIC,-Wno-unknown-pragmas")
 
     add_files("../src/device/nvidia/*.cu")
-
-    add_links("cudart")
 
     on_install(function (target) end)
 target_end()
@@ -55,12 +55,12 @@ target("llaisys-ops-nvidia")
     add_rules("cuda")
     add_cuflags("-gencode=arch=compute_" .. cuda_arch .. ",code=sm_" .. cuda_arch)
     add_cuflags("-O3")
-    add_cxflags("-fPIC", "-Wno-unknown-pragmas")
+    -- Enable relocatable device code for proper linking with shared library
+    add_cuflags("-rdc=true")
+    -- Pass -fPIC to the host compiler through nvcc
+    add_cuflags("-Xcompiler=-fPIC,-Wno-unknown-pragmas")
 
     add_files("../src/ops/*/nvidia/*.cu")
-
-    -- CUDA libraries for accelerated operators
-    add_links("cudart", "cublas")
 
     on_install(function (target) end)
 target_end()
