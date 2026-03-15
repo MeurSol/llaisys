@@ -80,6 +80,7 @@ target("llaisys-device")
     end
     if has_config("mx-gpu") then
         add_deps("llaisys-device-metax")
+        add_links("llaisys-device-metax")
     end
 
     set_languages("cxx17")
@@ -189,6 +190,7 @@ target("llaisys")
     if has_config("mx-gpu") then
         add_deps("llaisys-device-metax")
         add_deps("llaisys-ops-metax")
+        add_links("llaisys-device-metax", "llaisys-ops-metax")
     end
 
     if has_config("nv-gpu") then

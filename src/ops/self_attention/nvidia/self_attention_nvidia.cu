@@ -18,7 +18,7 @@ __global__ void self_attention_kernel_impl(T *attn_val, const T *q, const T *k, 
                                            size_t nhead, size_t nkvhead, size_t d, size_t dv) {
     if (threadIdx.x != 0) {return;}
 
-    extern __shared__ float scores[];
+    extern __shared__ double scores[];
 
     size_t query_idx = blockIdx.x;
     size_t head_idx = blockIdx.y;
@@ -34,43 +34,44 @@ __global__ void self_attention_kernel_impl(T *attn_val, const T *q, const T *k, 
     const T *q_ptr = q + (query_idx * nhead * d) + (head_idx * d);
     T *out_ptr = attn_val + (query_idx * nhead * dv) + (head_idx * dv);
 
-    float max_val = -FLT_MAX;
+    double max_val = -DBL_MAX;
     for (size_t t = 0; t < valid_len; ++t) {
         const T *k_ptr = k + (t * nkvhead * d) + (kv_head_idx * d);
-        float dot = 0.0f;
+        double dot = 0.0;
         for (size_t j = 0; j < d; ++j) {
             if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
-                dot += utils::cast_device<float>(q_ptr[j]) * utils::cast_device<float>(k_ptr[j]);
+                dot += static_cast<double>(utils::cast_device<float>(q_ptr[j])) *
+                       static_cast<double>(utils::cast_device<float>(k_ptr[j]));
             } else {
-                dot += q_ptr[j] * k_ptr[j];
+                dot += static_cast<double>(q_ptr[j]) * static_cast<double>(k_ptr[j]);
             }
         }
-        scores[t] = dot * scale;
+        scores[t] = dot * static_cast<double>(scale);
         if (scores[t] > max_val) {
             max_val = scores[t];
         }
     }
 
-    float sum_exp = 0.0f;
+    double sum_exp = 0.0;
     for (size_t t = 0; t < valid_len; ++t) {
-        scores[t] = expf(scores[t] - max_val);
+        scores[t] = exp(scores[t] - max_val);
         sum_exp += scores[t];
     }
 
     for (size_t j = 0; j < dv; ++j) {
-        float value = 0.0f;
+        double value = 0.0;
         for (size_t t = 0; t < valid_len; ++t) {
             const T *v_ptr = v + (t * nkvhead * dv) + (kv_head_idx * dv);
             if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
-                value += scores[t] * utils::cast_device<float>(v_ptr[j]);
+                value += scores[t] * static_cast<double>(utils::cast_device<float>(v_ptr[j]));
             } else {
-                value += scores[t] * v_ptr[j];
+                value += scores[t] * static_cast<double>(v_ptr[j]);
             }
         }
         if constexpr (std::is_same_v<T, fp16_t> || std::is_same_v<T, bf16_t>) {
-            out_ptr[j] = utils::cast_device<T>(value / sum_exp);
+            out_ptr[j] = utils::cast_device<T>(static_cast<float>(value / sum_exp));
         } else {
-            out_ptr[j] = value / sum_exp;
+            out_ptr[j] = static_cast<T>(value / sum_exp);
         }
     }
 }
@@ -80,7 +81,7 @@ void self_attention(std::byte *attn_val, const std::byte *q, const std::byte *k,
                     size_t seq_len, size_t total_len, size_t nhead, size_t nkvhead, size_t d, size_t dv) {
     const dim3 num_blocks(static_cast<unsigned int>(seq_len), static_cast<unsigned int>(nhead), 1);
     const int block_size = 1;
-    const size_t shared_mem = total_len * sizeof(float);
+    const size_t shared_mem = total_len * sizeof(double);
 
     switch (dtype) {
     case LLAISYS_DTYPE_F32:

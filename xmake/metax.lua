@@ -1,6 +1,6 @@
 -- MetaX MACA backend integration.
 
-local function push_unique(list, value)
+local function add_unique(list, value)
     if not value or value == "" then
         return
     end
@@ -10,6 +10,12 @@ local function push_unique(list, value)
         end
     end
     table.insert(list, value)
+end
+
+local function add_if_dir(list, dir)
+    if os.isdir(dir) then
+        add_unique(list, dir)
+    end
 end
 
 local function sorted_files(pattern)
@@ -24,14 +30,14 @@ local function build_metax_config()
     local mxdriver_path = get_config("mxdriver-path") or "/opt/mxdriver"
 
     local roots = {}
-    push_unique(roots, maca_path)
-    push_unique(roots, os.getenv("MACA_HOME"))
-    push_unique(roots, "/opt/maca")
-    push_unique(roots, "/usr/local/maca")
-    push_unique(roots, "/opt/maca-3.3.0")
-    push_unique(roots, "/opt/maca-3.2.1")
-    push_unique(roots, "/opt/maca-3.2.0")
-    push_unique(roots, "/opt/maca-3.1.0")
+    add_unique(roots, maca_path)
+    add_unique(roots, os.getenv("MACA_HOME"))
+    add_unique(roots, "/opt/maca")
+    add_unique(roots, "/usr/local/maca")
+    add_unique(roots, "/opt/maca-3.3.0")
+    add_unique(roots, "/opt/maca-3.2.1")
+    add_unique(roots, "/opt/maca-3.2.0")
+    add_unique(roots, "/opt/maca-3.1.0")
 
     local include_dirs = {
         path.join(projectdir, "include"),
@@ -39,16 +45,16 @@ local function build_metax_config()
     }
     local link_dirs = {}
     for _, root in ipairs(roots) do
-        push_unique(include_dirs, os.isdir(path.join(root, "include")) and path.join(root, "include") or nil)
-        push_unique(include_dirs, os.isdir(path.join(root, "tools", "cu-bridge", "include")) and path.join(root, "tools", "cu-bridge", "include") or nil)
-        push_unique(include_dirs, os.isdir(path.join(root, "mxgpu_llvm", "include")) and path.join(root, "mxgpu_llvm", "include") or nil)
+        add_if_dir(include_dirs, path.join(root, "include"))
+        add_if_dir(include_dirs, path.join(root, "tools", "cu-bridge", "include"))
+        add_if_dir(include_dirs, path.join(root, "mxgpu_llvm", "include"))
 
-        push_unique(link_dirs, os.isdir(path.join(root, "lib")) and path.join(root, "lib") or nil)
-        push_unique(link_dirs, os.isdir(path.join(root, "lib64")) and path.join(root, "lib64") or nil)
-        push_unique(link_dirs, os.isdir(path.join(root, "mxgpu_llvm", "lib")) and path.join(root, "mxgpu_llvm", "lib") or nil)
-        push_unique(link_dirs, os.isdir(path.join(root, "mxgpu_llvm", "lib64")) and path.join(root, "mxgpu_llvm", "lib64") or nil)
+        add_if_dir(link_dirs, path.join(root, "lib"))
+        add_if_dir(link_dirs, path.join(root, "lib64"))
+        add_if_dir(link_dirs, path.join(root, "mxgpu_llvm", "lib"))
+        add_if_dir(link_dirs, path.join(root, "mxgpu_llvm", "lib64"))
     end
-    push_unique(link_dirs, os.isdir(path.join(mxdriver_path, "lib")) and path.join(mxdriver_path, "lib") or nil)
+    add_if_dir(link_dirs, path.join(mxdriver_path, "lib"))
 
     local mxcc = os.getenv("MXCC")
     if not mxcc or mxcc == "" then
@@ -67,6 +73,7 @@ local function build_metax_config()
         common_cxflags = is_plat("windows") and {} or {"-fPIC", "-Wno-unknown-pragmas"},
         maca_compile_flags = {
             "-std=c++17",
+            "-D__CUDACC__",
             "-x", "maca",
             "-offload-arch", "native",
             "--maca-path=" .. maca_path,
@@ -93,32 +100,19 @@ local function configure_current_target(cfg)
     add_syslinks(table.unpack(cfg.syslinks), {public = true})
 end
 
-local function wrapper_path(cfg, group_name, source)
-    local filename = path.basename(source) .. "_wrapper.cpp"
-    return path.join(cfg.projectdir, "build", "_gen", "metax", group_name, filename)
-end
-
 local function object_path(cfg, group_name, source)
-    local op_name = path.basename(path.directory(path.directory(source)))
-    local filename = op_name .. "_" .. path.basename(source) .. ".o"
-    return path.join(cfg.projectdir, "build", "_gen", "metax", group_name, filename)
-end
-
-local function generate_wrapper_sources(cfg, group_name, sources)
-    local wrappers = {}
-    for _, source in ipairs(sources) do
-        local wrapper = wrapper_path(cfg, group_name, source)
-        os.mkdir(path.directory(wrapper))
-        io.writefile(wrapper, "#include \"" .. path.translate(source) .. "\"\n")
-        table.insert(wrappers, wrapper)
+    local basename = path.basename(source) .. ".o"
+    if group_name == "ops" then
+        local op_name = path.basename(path.directory(path.directory(source)))
+        return path.join(cfg.projectdir, "build", "_gen", "metax", group_name, op_name, basename)
     end
-    return wrappers
+    return path.join(cfg.projectdir, "build", "_gen", "metax", group_name, basename)
 end
 
-local function compile_maca_objects(cfg, sources, objects)
+local function emit_compile_commands(batchcmds, cfg, sources, objects)
     for i, source in ipairs(sources) do
         local object = objects[i]
-        os.mkdir(path.directory(object))
+        batchcmds:mkdir(path.directory(object))
 
         local args = {}
         for _, flag in ipairs(cfg.maca_compile_flags) do
@@ -132,65 +126,75 @@ local function compile_maca_objects(cfg, sources, objects)
         table.insert(args, "-o")
         table.insert(args, object)
 
-        os.vrunv(cfg.mxcc, args)
+        batchcmds:vrunv(cfg.mxcc, args)
     end
 end
 
-local function archive_objects(target, objects)
+local function emit_archive_commands(batchcmds, target, objects)
     local targetfile = target:targetfile()
     local ar = target:tool("ar") or "ar"
 
-    os.mkdir(path.directory(targetfile))
-    os.rm(targetfile)
+    batchcmds:mkdir(path.directory(targetfile))
+    batchcmds:rm(targetfile)
 
     local args = {"-cr", targetfile}
     for _, object in ipairs(objects) do
         table.insert(args, object)
     end
-    os.vrunv(ar, args)
+    batchcmds:vrunv(ar, args)
+end
+
+local function set_target_sources(target, cfg, group_name, pattern)
+    local sources = sorted_files(path.join(cfg.projectdir, pattern))
+    local objects = {}
+    for _, source in ipairs(sources) do
+        table.insert(objects, object_path(cfg, group_name, source))
+    end
+    target:data_set("metax_sources", sources)
+    target:data_set("metax_objects", objects)
+end
+
+local function build_target_sources(target, batchcmds, cfg)
+    local sources = target:data("metax_sources") or {}
+    local objects = target:data("metax_objects") or {}
+    emit_compile_commands(batchcmds, cfg, sources, objects)
+    emit_archive_commands(batchcmds, target, objects)
+end
+
+local function register_metax_archive_target(cfg, name, deps, group_name, pattern)
+    target(name)
+        set_kind("static")
+        for _, dep in ipairs(deps) do
+            add_deps(dep)
+        end
+        configure_current_target(cfg)
+
+        on_load(function (target)
+            set_target_sources(target, cfg, group_name, pattern)
+        end)
+
+        on_buildcmd(function (target, batchcmds, opt)
+            build_target_sources(target, batchcmds, cfg)
+        end)
+
+        on_install(function (target) end)
+    target_end()
 end
 
 local metax = build_metax_config()
 
-target("llaisys-device-metax")
-    set_kind("static")
-    add_deps("llaisys-utils")
-    configure_current_target(metax)
+register_metax_archive_target(
+    metax,
+    "llaisys-device-metax",
+    {"llaisys-utils"},
+    "device",
+    "src/device/metax/*.maca"
+)
 
-    on_load(function (target)
-        local sources = sorted_files(path.join(metax.projectdir, "src", "device", "metax", "*.maca"))
-        local wrappers = generate_wrapper_sources(metax, "device", sources)
-        for _, wrapper in ipairs(wrappers) do
-            target:add("files", wrapper)
-        end
-    end)
-
-    on_install(function (target) end)
-target_end()
-
-target("llaisys-ops-metax")
-    set_kind("static")
-    add_deps("llaisys-tensor")
-    configure_current_target(metax)
-
-    on_load(function (target)
-        local sources = sorted_files(path.join(metax.projectdir, "src", "ops", "*", "metax", "*.maca"))
-        local objects = {}
-        for _, source in ipairs(sources) do
-            table.insert(objects, object_path(metax, "ops", source))
-        end
-
-        target:data_set("metax_sources", sources)
-        target:data_set("metax_objects", objects)
-    end)
-
-    on_build(function (target)
-        local sources = target:data("metax_sources") or {}
-        local objects = target:data("metax_objects") or {}
-
-        compile_maca_objects(metax, sources, objects)
-        archive_objects(target, objects)
-    end)
-
-    on_install(function (target) end)
-target_end()
+register_metax_archive_target(
+    metax,
+    "llaisys-ops-metax",
+    {"llaisys-tensor"},
+    "ops",
+    "src/ops/*/metax/*.maca"
+)

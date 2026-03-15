@@ -123,7 +123,7 @@ bf16_t _f32_to_bf16(float val);
 
 // Device-compatible conversion functions
 LLAISYS_HOST_DEVICE inline float _f16_to_f32_device(fp16_t val) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__CUDACC__)
     // Use CUDA half arithmetic on device
     half h = __ushort_as_half(val._v);
     return __half2float(h);
@@ -134,7 +134,7 @@ LLAISYS_HOST_DEVICE inline float _f16_to_f32_device(fp16_t val) {
 }
 
 LLAISYS_HOST_DEVICE inline fp16_t _f32_to_f16_device(float val) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__CUDACC__)
     // Use CUDA half arithmetic on device
     half h = __float2half(val);
     return fp16_t{__half_as_ushort(h)};
@@ -145,7 +145,7 @@ LLAISYS_HOST_DEVICE inline fp16_t _f32_to_f16_device(float val) {
 }
 
 LLAISYS_HOST_DEVICE inline float _bf16_to_f32_device(bf16_t val) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__CUDACC__)
     // bf16 is stored as upper 16 bits of float32
     uint32_t bits = static_cast<uint32_t>(val._v) << 16;
     return *reinterpret_cast<float*>(&bits);
@@ -156,7 +156,7 @@ LLAISYS_HOST_DEVICE inline float _bf16_to_f32_device(bf16_t val) {
 }
 
 LLAISYS_HOST_DEVICE inline bf16_t _f32_to_bf16_device(float val) {
-#if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || defined(__CUDACC__)
     // Convert float to bf16 by taking upper 16 bits (with rounding)
     uint32_t bits = *reinterpret_cast<uint32_t*>(&val);
     uint32_t rounding_bias = 0x00007FFF + ((bits >> 16) & 1);
