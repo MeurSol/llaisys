@@ -23,7 +23,7 @@ void rearrange(tensor_t out, tensor_t in) {
     }
 
 #if defined(ENABLE_NVIDIA_API) || defined(ENABLE_METAX_API)
-    if (out->deviceType() == LLAISYS_DEVICE_NVIDIA) {
+    if (out->deviceType() == LLAISYS_DEVICE_NVIDIA || out->deviceType() == LLAISYS_DEVICE_METAX) {
         ASSERT(out->isContiguous() && in->isContiguous(),
                "Rearrange CUDA: only contiguous tensors are supported for now.");
         llaisys::core::context().setDevice(out->deviceType(), out->deviceId());

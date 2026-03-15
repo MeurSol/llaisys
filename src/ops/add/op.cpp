@@ -32,7 +32,7 @@ void add(tensor_t c, tensor_t a, tensor_t b) {
     case LLAISYS_DEVICE_NVIDIA:
         return nvidia::add(c->data(), a->data(), b->data(), c->dtype(), c->numel());
 #elif defined(ENABLE_METAX_API)
-    case LLAISYS_DEVICE_NVIDIA:
+    case LLAISYS_DEVICE_METAX:
         return metax::add(c->data(), a->data(), b->data(), c->dtype(), c->numel());
 #endif
     default:

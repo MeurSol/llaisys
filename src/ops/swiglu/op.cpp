@@ -30,7 +30,7 @@ void swiglu(tensor_t out, tensor_t gate, tensor_t up) {
     case LLAISYS_DEVICE_NVIDIA:
         return nvidia::swiglu(out->data(), gate->data(), up->data(), out->dtype(), out->numel());
 #elif defined(ENABLE_METAX_API)
-    case LLAISYS_DEVICE_NVIDIA:
+    case LLAISYS_DEVICE_METAX:
         return metax::swiglu(out->data(), gate->data(), up->data(), out->dtype(), out->numel());
 #endif
     default:

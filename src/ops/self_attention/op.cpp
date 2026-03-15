@@ -49,7 +49,7 @@ void self_attention(tensor_t attn_val, tensor_t q, tensor_t k, tensor_t v, float
         return nvidia::self_attention(attn_val->data(), q->data(), k->data(), v->data(), scale,
                                       attn_val->dtype(), seq_len, total_len, nhead, nkvhead, d, dv);
 #elif defined(ENABLE_METAX_API)
-    case LLAISYS_DEVICE_NVIDIA:
+    case LLAISYS_DEVICE_METAX:
         return metax::self_attention(attn_val->data(), q->data(), k->data(), v->data(), scale,
                                      attn_val->dtype(), seq_len, total_len, nhead, nkvhead, d, dv);
 #endif

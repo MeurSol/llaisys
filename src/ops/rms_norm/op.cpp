@@ -39,7 +39,7 @@ void rms_norm(tensor_t out, tensor_t in, tensor_t weight, float eps) {
     case LLAISYS_DEVICE_NVIDIA:
         return nvidia::rms_norm(out->data(), in->data(), weight->data(), eps, in->dtype(), N, D);
 #elif defined(ENABLE_METAX_API)
-    case LLAISYS_DEVICE_NVIDIA:
+    case LLAISYS_DEVICE_METAX:
         return metax::rms_norm(out->data(), in->data(), weight->data(), eps, in->dtype(), N, D);
 #endif
     default:

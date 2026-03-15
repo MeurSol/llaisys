@@ -39,7 +39,7 @@ void embedding(tensor_t out, tensor_t index, tensor_t weight) {
         return nvidia::embedding(out->data(), index->data(), weight->data(), weight->dtype(),
                                  index->shape()[0], weight->shape()[1]);
 #elif defined(ENABLE_METAX_API)
-    case LLAISYS_DEVICE_NVIDIA:
+    case LLAISYS_DEVICE_METAX:
         return metax::embedding(out->data(), index->data(), weight->data(), weight->dtype(),
                                 index->shape()[0], weight->shape()[1]);
 #endif
