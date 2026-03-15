@@ -13,7 +13,6 @@ void argmax(tensor_t max_idx, tensor_t max_val, tensor_t vals) {
     CHECK_SAME_DEVICE(max_idx, max_val, vals);
     CHECK_SAME_DTYPE(max_val->dtype(), vals->dtype());
     ASSERT(vals->isContiguous(), "Argmax: vals tensor must be contiguous.");
-    ASSERT(vals->ndim() == 1, "Argmax: vals tensor must be 1D.");
     ASSERT(max_idx->shape() == std::vector<size_t>{1}, "Argmax: max_idx tensor must have shape (1,).");
     ASSERT(max_val->shape() == std::vector<size_t>{1}, "Argmax: max_val tensor must have shape (1,).");
     ASSERT(max_idx->dtype() == LLAISYS_DTYPE_I64, "Argmax: max_idx tensor must have dtype int64.");
