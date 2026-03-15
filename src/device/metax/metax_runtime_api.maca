@@ -1,0 +1,5 @@
+#include "../nvidia/nvidia_runtime_api.cu"
+
+namespace llaisys::device {
+namespace metax = nvidia;
+}

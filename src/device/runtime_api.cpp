@@ -78,6 +78,8 @@ const LlaisysRuntimeAPI *getRuntimeAPI(llaisysDeviceType_t device_type) {
     case LLAISYS_DEVICE_NVIDIA:
 #ifdef ENABLE_NVIDIA_API
         return llaisys::device::nvidia::getRuntimeAPI();
+#elif defined(ENABLE_METAX_API)
+        return llaisys::device::metax::getRuntimeAPI();
 #else
         return getUnsupportedRuntimeAPI();
 #endif

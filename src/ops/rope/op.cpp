@@ -6,6 +6,8 @@
 #include "cpu/rope_cpu.hpp"
 #ifdef ENABLE_NVIDIA_API
 #include "nvidia/rope_nvidia.cuh"
+#elif defined(ENABLE_METAX_API)
+#include "metax/rope_metax.cuh"
 #endif
 
 namespace llaisys::ops {
@@ -40,6 +42,10 @@ void rope(tensor_t out, tensor_t in, tensor_t pos_ids, float theta) {
     case LLAISYS_DEVICE_NVIDIA:
         return nvidia::rope(out->data(), in->data(), pos_ids->data(),
                             theta, in->dtype(), seq_len, n_heads, head_dim);
+#elif defined(ENABLE_METAX_API)
+    case LLAISYS_DEVICE_NVIDIA:
+        return metax::rope(out->data(), in->data(), pos_ids->data(),
+                           theta, in->dtype(), seq_len, n_heads, head_dim);
 #endif
     default:
         EXCEPTION_UNSUPPORTED_DEVICE;

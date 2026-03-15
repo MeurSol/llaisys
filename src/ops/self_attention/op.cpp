@@ -6,6 +6,8 @@
 #include "cpu/self_attention_cpu.hpp"
 #ifdef ENABLE_NVIDIA_API
 #include "nvidia/self_attention_nvidia.cuh"
+#elif defined(ENABLE_METAX_API)
+#include "metax/self_attention_metax.cuh"
 #endif
 
 namespace llaisys::ops {
@@ -46,6 +48,10 @@ void self_attention(tensor_t attn_val, tensor_t q, tensor_t k, tensor_t v, float
     case LLAISYS_DEVICE_NVIDIA:
         return nvidia::self_attention(attn_val->data(), q->data(), k->data(), v->data(), scale,
                                       attn_val->dtype(), seq_len, total_len, nhead, nkvhead, d, dv);
+#elif defined(ENABLE_METAX_API)
+    case LLAISYS_DEVICE_NVIDIA:
+        return metax::self_attention(attn_val->data(), q->data(), k->data(), v->data(), scale,
+                                     attn_val->dtype(), seq_len, total_len, nhead, nkvhead, d, dv);
 #endif
     default:
         EXCEPTION_UNSUPPORTED_DEVICE;

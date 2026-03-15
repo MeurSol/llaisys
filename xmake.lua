@@ -36,7 +36,14 @@ option("mxdriver-path")
     set_description("MetaX driver path")
 option_end()
 
-if has_config("nv-gpu") then
+local use_nv_gpu = has_config("nv-gpu")
+local use_mx_gpu = has_config("mx-gpu")
+
+if use_nv_gpu and use_mx_gpu then
+    raise("Please enable only one GPU backend at a time: nv-gpu or mx-gpu")
+end
+
+if use_nv_gpu then
     add_defines("ENABLE_NVIDIA_API")
     includes("xmake/nvidia.lua")
 
@@ -44,15 +51,9 @@ if has_config("nv-gpu") then
         add_sysincludedirs("/usr/local/cuda/include")
         add_linkdirs("/usr/local/cuda/lib64")
     end
-end
-
-if has_config("mx-gpu") then
-    add_defines("ENABLE_NVIDIA_API")
-    includes("xmake/maca.lua")
-end
-
-if has_config("nv-gpu") and has_config("mx-gpu") then
-    raise("Please enable only one GPU backend at a time: nv-gpu or mx-gpu")
+elseif use_mx_gpu then
+    add_defines("ENABLE_METAX_API")
+    includes("xmake/metax.lua")
 end
 
 target("llaisys-utils")
@@ -74,8 +75,11 @@ target("llaisys-device")
     set_kind("static")
     add_deps("llaisys-utils")
     add_deps("llaisys-device-cpu")
-    if has_gpu_backend() then
+    if has_config("nv-gpu") then
         add_deps("llaisys-device-nvidia")
+    end
+    if has_config("mx-gpu") then
+        add_deps("llaisys-device-metax")
     end
 
     set_languages("cxx17")
@@ -93,8 +97,11 @@ target("llaisys-core")
     set_kind("static")
     add_deps("llaisys-utils")
     add_deps("llaisys-device")
-    if has_gpu_backend() then
+    if has_config("nv-gpu") then
         add_deps("llaisys-device-nvidia")
+    end
+    if has_config("mx-gpu") then
+        add_deps("llaisys-device-metax")
     end
 
     set_languages("cxx17")
@@ -126,8 +133,12 @@ target_end()
 target("llaisys-ops")
     set_kind("static")
     add_deps("llaisys-ops-cpu")
-    if has_gpu_backend() then
+    if has_config("nv-gpu") then
         add_deps("llaisys-ops-nvidia")
+    end
+    if has_config("mx-gpu") then
+        add_deps("llaisys-ops-metax")
+        add_links("llaisys-ops-metax")
     end
 
     set_languages("cxx17")
@@ -171,9 +182,13 @@ target("llaisys")
     set_languages("cxx17")
     set_warnings("all", "error")
 
-    if has_gpu_backend() then
+    if has_config("nv-gpu") then
         add_deps("llaisys-device-nvidia")
         add_deps("llaisys-ops-nvidia")
+    end
+    if has_config("mx-gpu") then
+        add_deps("llaisys-device-metax")
+        add_deps("llaisys-ops-metax")
     end
 
     if has_config("nv-gpu") then
@@ -186,18 +201,12 @@ target("llaisys")
         end
     end
 
-    if has_config("mx-gpu") then
+    if has_config("mx-gpu") and is_plat("linux") then
         local maca_path = get_config("maca-path") or "/opt/maca"
         local mxdriver_path = get_config("mxdriver-path") or "/opt/mxdriver"
-
-        set_toolset("sh", path.join(maca_path, "mxgpu_llvm/bin/mxcc"))
-
-        if is_plat("linux") then
-            add_linkdirs(path.join(maca_path, "lib"))
-            add_linkdirs(path.join(mxdriver_path, "lib"))
-            add_syslinks("mxc-runtime64", "mxsml", "mcblas")
-            add_shflags("-x", "maca", "-offload-arch", "native", "--maca-path=" .. maca_path, {force = true})
-        end
+        add_linkdirs(path.join(maca_path, "lib"))
+        add_linkdirs(path.join(mxdriver_path, "lib"))
+        add_syslinks("mcruntime", "mxc-runtime64", "runtime_cu", "mxsml", "mcblas")
     end
 
     add_files("src/llaisys/*.cc")
