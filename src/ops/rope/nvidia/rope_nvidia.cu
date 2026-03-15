@@ -13,9 +13,9 @@ namespace llaisys::ops::nvidia {
 
 template <typename T>
 __global__ void rope_kernel(T *out, const T *in, const int64_t *pos_ids, float theta,
-                            size_t n_heads, size_t head_dim, size_t half_dim) {
+                            size_t seq_len, size_t n_heads, size_t head_dim, size_t half_dim) {
     size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t numel = gridDim.y * n_heads * half_dim;
+    size_t numel = seq_len * n_heads * half_dim;
     if (idx >= numel) {
         return;
     }
@@ -57,21 +57,21 @@ void rope(std::byte *out, const std::byte *in, const std::byte *pos_ids,
             reinterpret_cast<float *>(out),
             reinterpret_cast<const float *>(in),
             reinterpret_cast<const int64_t *>(pos_ids),
-            theta, n_heads, head_dim, half_dim);
+            theta, seq_len, n_heads, head_dim, half_dim);
         break;
     case LLAISYS_DTYPE_F16:
         rope_kernel<<<num_blocks, block_size>>>(
             reinterpret_cast<fp16_t *>(out),
             reinterpret_cast<const fp16_t *>(in),
             reinterpret_cast<const int64_t *>(pos_ids),
-            theta, n_heads, head_dim, half_dim);
+            theta, seq_len, n_heads, head_dim, half_dim);
         break;
     case LLAISYS_DTYPE_BF16:
         rope_kernel<<<num_blocks, block_size>>>(
             reinterpret_cast<bf16_t *>(out),
             reinterpret_cast<const bf16_t *>(in),
             reinterpret_cast<const int64_t *>(pos_ids),
-            theta, n_heads, head_dim, half_dim);
+            theta, seq_len, n_heads, head_dim, half_dim);
         break;
     default:
         std::fprintf(stderr, "[ERROR] Unsupported data type for CUDA rope: %d\n", dtype);

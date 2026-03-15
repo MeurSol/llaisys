@@ -1,5 +1,6 @@
 #include "op.hpp"
 
+#include "../../core/llaisys_core.hpp"
 #include "../../utils.hpp"
 
 #include "cpu/rearrange_cpu.hpp"
@@ -23,7 +24,16 @@ void rearrange(tensor_t out, tensor_t in) {
 
 #ifdef ENABLE_NVIDIA_API
     if (out->deviceType() == LLAISYS_DEVICE_NVIDIA) {
-        TO_BE_IMPLEMENTED();
+        ASSERT(out->isContiguous() && in->isContiguous(),
+               "Rearrange CUDA: only contiguous tensors are supported for now.");
+        llaisys::core::context().setDevice(out->deviceType(), out->deviceId());
+        auto &runtime = llaisys::core::context().runtime();
+        runtime.api()->memcpy_sync(
+            out->data(),
+            in->data(),
+            out->numel() * out->elementSize(),
+            LLAISYS_MEMCPY_D2D);
+        return;
     }
 #endif
 

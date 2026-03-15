@@ -5,8 +5,8 @@
 #include <cuda_runtime.h>
 
 #include <cmath>
+#include <cfloat>
 #include <cstdio>
-#include <limits>
 #include <stdexcept>
 #include <type_traits>
 
@@ -34,7 +34,7 @@ __global__ void self_attention_kernel_impl(T *attn_val, const T *q, const T *k, 
     const T *q_ptr = q + (query_idx * nhead * d) + (head_idx * d);
     T *out_ptr = attn_val + (query_idx * nhead * dv) + (head_idx * dv);
 
-    float max_val = -std::numeric_limits<float>::infinity();
+    float max_val = -FLT_MAX;
     for (size_t t = 0; t < valid_len; ++t) {
         const T *k_ptr = k + (t * nkvhead * d) + (kv_head_idx * d);
         float dot = 0.0f;
