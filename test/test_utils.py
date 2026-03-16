@@ -1,12 +1,6 @@
 import llaisys
 import torch
 
-if hasattr(torch.backends, "cuda") and hasattr(torch.backends.cuda, "matmul"):
-    torch.backends.cuda.matmul.allow_tf32 = False
-if hasattr(torch.backends, "cudnn"):
-    torch.backends.cudnn.allow_tf32 = False
-
-
 def random_tensor(
     shape, dtype_name, device_name, device_id=0, scale=None, bias=None
 ) -> tuple[torch.Tensor, llaisys.Tensor]:
